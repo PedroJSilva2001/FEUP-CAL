@@ -9,11 +9,7 @@ bool Activity::overlaps(const Activity &a2) const {
     return (start < a2.finish) && (a2.start < finish);
 }
 
-std::vector<Activity> activitySelectionBacktracking(std::vector<Activity> A) {
-    vector<Activity> ans;
-    activitySelectionRecursive(A,0,ans);
-    return ans;
-}
+
 std::vector<Activity> activitySelectionRecursion(std::vector<Activity> &A, int index, std::vector<Activity> &answer) {
     vector<Activity> ansCopy = answer;
     vector<Activity> bestAns = answer;
@@ -34,6 +30,11 @@ std::vector<Activity> activitySelectionRecursion(std::vector<Activity> &A, int i
     return bestAns.size();
 }
 
+std::vector<Activity> activitySelectionBacktracking(std::vector<Activity> A) {
+    vector<Activity> ans;
+    activitySelectionRecursive(A,0,ans);
+    return ans;
+}
 /// TESTS ///
 #include <gtest/gtest.h>
 
