@@ -121,7 +121,17 @@ int Sudoku::countSolutions() {
 }
 
 void Sudoku::generate() {
-	//TODO
+    int numSolutions;
+    do{
+        int x = rand() % 8;
+        int y = rand() % 8;
+        int k = rand() % 8 + 1;
+        if(accepts(x,y,k)){
+            place(x,y,k);
+            numSolutions = countSolutions();
+            if(numSolutions == 0) clear(x,y);
+        }
+    }while(numSolutions != 1);
 }
 
 int** Sudoku::getNumbers() {
