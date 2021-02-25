@@ -10,7 +10,7 @@ bool Activity::overlaps(const Activity &a2) const {
 }
 
 
-std::vector<Activity> activitySelectionRecursion(std::vector<Activity> &A, int index, std::vector<Activity> &answer) {
+int activitySelectionRecursion(std::vector<Activity> &A, int index, std::vector<Activity> &answer) {
     vector<Activity> ansCopy = answer;
     vector<Activity> bestAns = answer;
     for(int i = index; i < A.size(); i++){
