@@ -1,8 +1,44 @@
 #include "exercises.h"
+#include <vector>
+using namespace std;
+
+bool allowedByStock(unsigned Stock[], unsigned n, std::vector<unsigned> &col, unsigned j){
+    for(unsigned  i = 0; i < n; i++){
+        if(col[i] + (i==j) > Stock[i]) return false;
+    }
+    return true;
+}
+
 
 bool changeMakingDP(unsigned int C[], unsigned int Stock[], unsigned int n, unsigned int T, unsigned int usedCoins[]) {
-    // TODO
-	return false;
+    vector<unsigned> minCoins(T+1,T+1);
+    vector<vector<unsigned>> coins(T+1, vector<unsigned>(n, 0));
+
+    for(unsigned i = 0; i < n; i++) {
+        usedCoins[i] = 0;
+    }
+
+    minCoins[0] = 0;;
+
+    for(unsigned j = 1; j <=  T; j++){
+        for(unsigned i = 0; i < n; i++){
+            if(C[i] > j) continue;
+            if (minCoins[j] > minCoins[j - C[i]] + 1 &&  allowedByStock(Stock, n, coins[j - C[i]], i)){
+                minCoins[j] = minCoins[j - C[i]] + 1;
+                coins[j] =  coins[j - C[i]];
+                coins[j][i] ++;
+            }
+        }
+    }
+
+    unsigned sum = 0;
+
+    for(int i = 0; i < n; i++){
+        usedCoins[i] = coins[T][i];
+        sum += C[i]*usedCoins[i];
+    }
+
+    return sum == T;
 }
 
 /// TESTS ///

@@ -1,8 +1,33 @@
 #include "exercises.h"
 
 std::string calcSum(int sequence[], unsigned long n) {
-    // TODO
-    return "";
+    std::string ans;
+    unsigned best, bestPos;
+
+    for(unsigned i = 1; i <= n; i++) {
+        best = 0;
+        bestPos = 0;
+
+        for(unsigned j = 0; j < i; j++)  {
+            best += sequence[j];
+        }
+
+        unsigned accum = best;
+
+        for(unsigned j = i; j < n; j++) {
+            accum -= sequence[j-i];
+            accum += sequence[j];
+
+            if(accum < best) {
+                bestPos = j-i+1;
+                best = accum;
+            }
+        }
+
+        ans += std::to_string(best) + "," + std::to_string(bestPos) + ";";
+    }
+
+    return ans;
 }
 
 void testPerformanceCalcSum() {

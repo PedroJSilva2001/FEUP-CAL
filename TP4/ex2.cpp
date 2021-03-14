@@ -20,52 +20,37 @@ bool changeMakingUnlimitedDP(unsigned int C[], unsigned int n, unsigned int T, u
 
     vector<int> dp1(T+1, T+1);  //min coins
     dp1[0] = 0;
-    int dp2[T+1];   //last coins
-    dp2[0] = 0;
+    //int dp2[T+1];   //last coins
+    //dp2[0] = 0;
+    vector<int> dp2(T+1, -1); //last coins
 
-    /*for (int i = 0; i <= n; i++) {
-        for (int j = C[i]; j <= T; j++) {
-            //dp1[j] = min(dp1[j], dp1[j-C[i]] +1);
-            if (dp1[j - C[i]] + 1 < dp1[j]){
-                dp1[j] = 1 + dp1[j - C[i]];
-                dp2[j] = C[i];
+    for (int i = 0; i <= n; i++) {
+        for (int k = C[i]; k <= T; k++) {
+            //dp1[k] = min(dp1[k], dp1[k-C[i]] +1);
+            if (dp1[k - C[i]] + 1 < dp1[k]) {
+                dp1[k] = 1 + dp1[k - C[i]];
+                //dp2[k] = C[i];
+                dp2[k] = i;
             }
         }
-    }*/
-    /*if (dp1[T] <= T) return true;
-    return false;*/
-
-    for (int i = 1; i <= n; i++)
-        for (int k = C[i - 1]; k <= T; k++)
-            if (dp1[k - C[i - 1]] + 1 < dp1[k])
-            {
-                dp1[k] = 1 + dp1[k - C[i - 1]];
-                dp2[k] = C[i - 1];
-            }
+    }
 
     if(dp1[T] > T) return false;
 
-    /*map<int, int> mp;
-    for (int i = 0; i < n; ++i) {
-        mp.insert(make_pair(C[i], 0));
-    }
-    for (int i = T; i > 0; i -= dp2[i]) {
-        int value = mp.at(dp2[i]);
-        mp.erase(dp2[i]);
-        mp.insert(make_pair(dp2[i], value+1));
-    }
-    for (auto p : mp) {
-
-    }*/
-    unordered_map<int, int> mp;
+    /*unordered_map<int, int> mp;
     for (int i = 0; i < n; ++i) {
         mp.insert(make_pair(C[i], i));
     }
     for (int i = T; i > 0; i -= dp2[i]) {
         usedCoins[mp.at(dp2[i])]++;
+    }*/
+    while(T > 0){
+        usedCoins[dp2[T]]++;
+        T -= C[dp2[T]];
     }
 
     return true;
+
 }
 
 
