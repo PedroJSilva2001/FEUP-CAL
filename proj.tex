@@ -1,0 +1,682 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+% Language
+\usepackage[english]{babel}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\algdef{SE}[DOWHILE]{Do}{doWhile}{\algorithmicdo}[1]{\algorithmicwhile\ #1}%
+\usepackage[margin=0.9in]{geometry}
+\usepackage{amsmath, amssymb}
+
+\usepackage{fancyhdr}
+\pagestyle{fancyplain}
+\fancyhf{}
+\lhead{ \fancyplain{}{Inserir cena aqui}}
+\lfoot{ \fancyplain{}{INSERIR NOME DO GRUPO}}
+\rfoot{ \fancyplain{}{\thepage} }
+
+\usepackage{natbib}
+\usepackage{graphicx}
+
+\title{ 
+    \huge VaccineRouter
+    \vspace*{4pt} \\ \large Delivery I of CAL report
+    \vspace*{4pt} \\ \large CAL 2020/2021
+    }
+    
+\author{Pedro Miguel Jesus da Silva INSERIR O RESTO }
+
+\date{April 2021}
+
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\section{Theme description}
+This report details the implementation of an application to manage the routing of vaccines from storage centers to vaccination centers. This route must not take more than a pre-established amount of time due to the necessity of safely preserving the vaccines. \\
+Each day the operational center of distribution tallies the number of vaccines needed in each application center and determines which storage centers can deliver them while respecting the time limit. In the case that the total itinerary of service of a center of storage exceeds the time limit, the application tries to split the route into smaller routes by using more vehicles or letting other storage center handle those routes. The project specification for this theme didn't include a maximum capacity on how many vaccines a van can carry but as an extra it was decided to include this factor as it is more realistic for them to have a capacity.\\Another thing to note is that if a road becomes blocked due to construction work, some city zones might become inaccessible.  
+
+\section{Problem Formalization}
+\subsection{Input}
+The inputs given are a map containing geographical locations plus the roads connecting them; a set of target centers of application in need of the vaccines; the time window $t$ where a vaccine can be delivered without getting compromised; the capacity or number of vaccines $C$ a vehicle can carry, the number of vaccines each target center of application requires and a set of vehicles for each center of storage. 
+\subsection{Graph}
+The given map will be converted to a weighted directed graph $G\;=\;(V,E,w)$ where the set of nodes $V$ will be geographical locations on the map, the set of edges $E$ will be the connections or roads between them and their weight will be the time it takes to go from a location to another (go from an endpoint of the edge to the other). It is best that the edges' weight represents a time since we have a constraint on the delivery time.\\ The set of centers of storage $V_d$ and target centers of application $V_{tc}$ will be proper subsets of $V$ ($V_{tc} \subset V \wedge V_{d}\subset V$).
+\subsection{Route}
+A route $r$ will be a sequence of nodes $\langle u_1, u_2, ..., u_i \rangle$ such that $u_i \in V$ and $1 \leq i \le |V|$. It represents the itinerary or the geographical locations a single vehicle must reach in sequence in order to deliver the vaccines to the target application centers assigned to it.
+\subsection{Output}
+The output of the program will be the set R of all routes $r$ needed to supply all of the application centers in need of vaccines. 
+\subsection{Restrictions}
+\begin{description}
+\item[Sets and sequences:]\
+     \begin{itemize}
+        \item $V$ = set of all nodes
+        \item $V_d$ = set of all centers of storage
+        \item $V_{tc}$ = set of all target centers of application
+        \item $E$ = set of all edges 
+        \item $r$ = sequence of nodes; is indexed by $1\leq f \leq |r|$ :\;$r_f$ is the $f$-th element in $r$.
+        \item $A_r$ = set of nodes $u\in V$ present in route $r$.
+        \item $R$ = set of all routes
+    \end{itemize}
+\end{description}
+
+\begin{description}
+\item[Parameters:]\
+     \begin{itemize}
+        \item $RL_k$ = maximum route size for vehicle k
+        \item $CAP_k$ = maximum capacity of vehicle k
+        \item $MAX_i$ = maximum demand that can be met by center of storage i
+        \item $w(u,v)$ = weight of the edge $(u,v)\in E$
+        \item $dem_j$ = demand of target center of application j        
+        \item $F_i$ = fleet of vehicles of center of storage i
+        \item $tar_i$ = set of target centers of application for center of storage i
+        \item $r_k$ = route of vehicle k
+    \end{itemize}
+\end{description}
+
+\begin{description}
+\item[Decision variables:]\
+     \begin{itemize}
+ $$ x_{kiuv} = 
+  \begin{cases}
+    1, & \text{if vehicle k is attributed to center of storage i and passing through edge}\:(u,v) \in E  \\
+    0, & \text{otherwise }
+  \end{cases}$$
+    \end{itemize}
+\end{description}
+
+\begin{description}
+\item[Restrictions:]\
+ \begin{enumerate}
+     \item All vehicles have the same max capacity $C$:
+         \[ \forall\:i \in V_d \;,\forall\:k \in F_i\;,\; CAP_k = C \]
+     
+     \item The amount of vaccines a vehicle is carrying during its route must not exceed the vehicle's capacity:
+        \[\sum_{i\in V_d^{}}\: \sum_{j\in tar_i^{}}\:  dem_j.x_{kiuv} \leq CAP_k\;,\;\forall\:k \in F_i\]
+     
+     
+    \item All target application centers who ordered for vaccines must be served:\\
+        \[  U = \{u\;|\; u \in A_r \;\wedge\; r \in R\}\;\;\;\text{(set of all nodes crossed in all routes)}\]
+    \[V_{tc} \subseteq U.\]
+    
+    
+    \item All vehicles have the same maximum route size:
+        \[ \forall\:i \in V_d \;,\forall\:k \in F_i,\; RL_k = t \]
+        
+    \item The time it takes to finish a single route $r$ must not exceed the time $t$ given as input:
+        \[ \sum_{i\in V_d^{}}\: \sum_{(u,v)\in E^{}} w(u,v).x_{kiuv} \leq t\;,\; \forall\:k\in F_i \]
+
+    \item There is a sub-route limit:
+        \[ \sum_{i\in V_d^{}}\: \sum_{k \in F_i^{}}\: \sum_{(u,v)\in E^{}:u \in A_{r_k},\:v \in V \setminus A_{r_k}} x_{kiuv} \geqslant 1 \]
+
+    \item A route must start in a node representing a storage center and finish in the same node:
+        \[ \forall\:r \in R \;,\; r_1 = r_{|r|} \wedge r_1 \in V_d\]
+
+     \item It is preferable that a route does not contain a center of storage in exception to the one where the vehicle leaves from and returns to:\\
+     \[Z=\{u\;|\; u \in A_r \wedge u \in V_d\} \;\;\;\text{(set of all centers of storage in a route $r$)}\]
+         \[ \forall\:r \in R \;,\; |Z| = 1\;\wedge\; r_1 \in Z \]
+
+    \item A target application center must be supplied by only one vehicle which in turn means it must be supplied by only one storage center:
+        \[ \sum_{i \in V_d^{}}\sum_{k \in F_i^{}} x_{kiuv} \leq 1\;,\;\forall\:(u,v) \in E\]
+        
+    \item The centers of storage all have unlimited capacity:
+        \[ \forall\:i \in V_d \;,\; MAX_i = \infty \]
+        
+    \item Only one vehicle arrives from an application center:
+        \[ \sum_{i\in V_d^{}}\: \sum_{k \in F_i^{}}\: \sum_{u:(u,v)\in E^{}} x_{kiuv}=1\;,\forall\:v\in V \]
+        
+    \item Only one vehicle leaves from an application center:
+        \[ \sum_{i\in V_d^{}}\: \sum_{k \in F_i^{}}\: \sum_{v:(u,v)\in E^{}} x_{kiuv}=1\;,\forall\:u\in V\]  
+        
+    \item A vehicle has enough capacity to fully supply at least one center of application:
+       \[ \forall\:i \in V_d \;,\forall\:k \in F_i\;,\forall\:j \in tar_i\;,\; dem_j \leq CAP_k \]
+
+    \item A route is conceptually a (circular) linked list: has no branching paths.
+    \item All values are non-negative integers.
+\end{enumerate}
+\end{description}
+\subsection{Objective function}
+The objective is minimizing the total time each vehicle takes to finish delivering the vaccines during its route. The objective function is T then:
+    \[  T = \sum_{r\in R}^{}\:\sum_{i=1}^{|r|-1} w(r_i, r_{i+1})\;\;\; \text{and minimizing it:}\;\;\; min\:T\]
+
+\newpage
+\section{Problem decomposition}
+The entire problem can be formulated as the multi-depot vehicle routing problem where the storage centers are the depots and the application centers are the clients. The vehicles are all homogeneous, they have the same vaccine capacity $C$.\\
+Since the MDVRP is an NP-Hard problem we need to use an heuristic approach to try to find a feasible answer which would take less computing time than an exact solution but at the same time is a good enough approximation to the problem.\\
+An approach to solve the MDVRP would be to first assign each client to a single depot. This assignment could be done using a shortest path algorithm to find the depot closest to each client and verify that he belongs to the same strongly connected component using an appropriate algorithm for that. Each depot and its assigned clients now belong to a new graph which needs to be condensed by removing all points that are not points of interest. \\
+After the assignment, effectively, there will be $|V_d|$ disjoint VRP problems to solve (one for each depot), which when solved individually, will give the global answer to the MDVRP in a shorter amount of time than would be possible if working will all depots at the same time.\\
+Solving the vehicle routing problem can be done by first solving the travelling salesmen problem (a specific case of the VRP) and refine the answer. An alternative would be the opposite: give each vehicle a set of clients using a heuristic and solving the TSP for each vehicle. The Bellman–Held–Karp algorithm gives an exact answer to the TSP and the Nearest Neighbour algorithm offers an approximation to it. Alternatively, the Clark-Wright's savings algorithm approximates the answer to the VRP directly. The deviations of this method from the optimal answer are typically in the 10-15\% range. If we want to improve the solution then we can try the improved petal heuristic.\\
+In conclusion, the problems that have to solved are: reachability and connectivity in the graph; shortest path between nodes; MDVRP, VRP and TSP.
+\newpage
+
+\section{Algorithms}
+After decomposing the given problem into a set well known Graph questions/problems, it is presented the algorithms and procedures needed to solve them.
+\begin{description}
+\item[Notes on the data structures used in the algorithms:]\
+\begin{itemize}
+    \item $Stack()$ - gives us an abstract stack with push, pop (also returns the element on top of the stack) operations and a Boolean value to know if it’s empty.
+    \item $PQueue()$ - gives us an abstract minimum priority queue with add with priority, decrease priority and extract min operations and a Boolean value to know if it's empty.
+\end{itemize}
+\end{description}
+\subsection{Reachability}
+A first step to solving the problem should be knowing which target application centers can be reached starting from a given storage center. This is important because if one of the centers is not reachable from that storage center, then we might need to send a vehicle from another storage center to cover that application center.\\
+To find all reachable nodes we can apply a depth-first search on the graph. Its pseudo-code is:
+\begin{algorithm}
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Input:} Graph $\;G\;=\;(V, E)$; set of storage centers $V_d$; set of target application centers $V_{tc}$\\
+\textbf{Output:} set of reachable application centers $reachable$ from each center of storage
+\begin{algorithmic}[1]
+    \Function{DFS}{$G(V,E),\;V_d,\;V_{tc}$} 
+        \For{\textbf{each} $u \in V_{d}$}
+            \State $reachable \gets \emptyset$
+            \For{\textbf{each} $v \in V$}
+                \State $vis(v) \gets false$
+            \EndFor
+            \State $DFS\_visit(G,\; u,\; u,\;V_{tc})$
+        \EndFor
+    \State \textbf{return} $reachable$
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Input:} Graph $G\;=\;(V, E)$; current node $u$; current storage center $w$; set of target application centers $V_{tc}$\\
+\textbf{Output:} nothing
+\begin{algorithmic}[1]
+    \Function{DFS\_visit}{$G(V,E),\;u,\;w,\;V_{tc}$} 
+        \State $vis(u) \gets true$
+        \If{$u \in V_{tc}$}
+            \State $reachable(w) \gets reachable(w) \; \cup \; \{u\}$
+        \EndIf
+        \For{\textbf{each} $ v \in Adj(G,u)$}
+            \If{$vis(v)\;=\;false$}
+            \State $DFS\_visit(G,\; v,\;w,\; V_{tc})$
+            \EndIf
+        \EndFor
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\caption{Depth-first search}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} Provided that the check if $u$ is in $V_c$ is done in constant time $O(1)$, which can be done using a hash map, DFS\_visit has a time complexity of $O(|V|+|E|)$ because it's a simple dfs. If the check was done in linear time $O(|V_{tc}|)$ the time complexity of the function would be the same because $O(V_{tc}.(|V|+|E|))$. Setting the visited values to false for each node of $V$ is done in linear time $O(|V|)$. The time complexity on a whole is then $O(|V_d|.(|V|+|E|)$ (or $O(|V_d|.|V_{tc}|.(|V|+|E|)$ if the check is done in linear time) because DFS\_visit gets called $|V_d|$ times by DFS.
+    \item \textbf{Space complexity:} $vis$ has a space complexity of $O(|V|)$ and $reachable$ has a space complexity of $O(|V_d|.|V_c|)$ because in the worst case each storage center can reach all application centers. If each call to DFS\_visit has a space complexity of $O(1)$ and provided that $G$, $w$ and $V_{tc}$ don't get copied each call, its space complexity is $O(|V|)$. The global space complexity is then $O(|V_d|.|V_c|+|V|)$ which gets reduced to $O(|V|)$ if there are many more nodes which are not centers of storage or application, otherwise, it becomes $O(|V_d|.|V_c|)$.
+\end{itemize}
+\end{description}
+\newpage
+\subsection{Connectivity}
+Finding the strongly connected components could also be a way to determine the reachability in the problem and it even gives us information about the connectivity of the graph which will be used later when assigning each application center to a storage center. To find the SCCs on the graph we can use Kosaraju's or Tarjan's algorithm. Their pseudo-code are: 
+\subsubsection{Kosaraju's algorithm}
+\begin{algorithm}[ht]
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Input:} Graph $\;G\;=\;(V, E)$\\
+\textbf{Output:} strongly connected components $scc$
+\begin{algorithmic}[1]
+    \State $st = Stack()$
+    \Function{Kosaraju}{$G(V,E)$} 
+        \For{\textbf{each} $u \in V$}
+            \State $vis1(u) \gets false$
+            \State $vis2(u) \gets false$
+            \State $scc(u) \gets null$
+        \EndFor
+        \For{\textbf{each} $u \in V$}
+            \If{$vis1(u)\;=\;false$}
+                \State $DFS1(G,\; u)$
+            \EndIf
+        \EndFor
+        \While{$st.empty\;=\;false$}
+            \State $u\gets st.pop()$
+            \If{$vis2(u)\;=\;false$}
+                \State $DFS2(G,\;u,\;u)$
+            \EndIf
+        \EndWhile
+    \State \textbf{return} $scc$
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.51\textwidth}
+\textbf{Input:} Graph $G\;=\;(V, E)$; starting node $u$\\
+\textbf{Output:} nothing
+\begin{algorithmic}[1]
+    \Function{DFS1}{$G(V,E),\;u$} 
+        \State $vis1(u) \gets true$
+        \For{\textbf{each} $ v \in Adj(G,u)$}
+            \If{$vis1(v)\;=\;false$}
+            \State $DFS1(G,\; v)$
+            \EndIf
+        \EndFor
+    \State $ st.push(u)$
+    \EndFunction
+\end{algorithmic}
+\textbf{Input:} Graph $G(V, E)$; starting node $u$; representative node $rep$ of the scc \\
+\textbf{Output:} nothing
+\begin{algorithmic}[1]
+    \Function{DFS2}{$G(V,E),\;u,\;rep$} 
+        \State $vis2(u) \gets true$
+        \State $scc(u) \gets rep$
+        \For{\textbf{each} $ v \in Adj(G^T,u)$}
+            \If{$vis2(v)\;=\;false$}
+                \State $DFS2(G,\; v,\; rep)$
+            \EndIf
+        \EndFor
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\caption{Kosaraju's algorithm}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} This algorithm is composed of two DFS algorithms that both have time complexity of $O(|V|+|E|)$. Transposing the graph has also a time complexity of $O(|V|+|E|)$ and the loop setting the supplementary data in all nodes ($scc$, $vis1$ and $vis2$) is $O(|V|)$. Transposing the graph is done with time $O(|V|+|E|)$. Thus Kosaraju's algorithm runs on $O(|V|+|E|)$ (linear) time if using an adjacency list for the representation of the graph or $O(|V|^2)$ if using an adjacency matrix.
+    \item \textbf{Space complexity:} The stack $st$ and the supplementary data ($scc$, $vis1$ and $vis2$) all have a space complexity $O(|V|)$. Provided that $G$ and $rep$ don't get copied each call, DFS1 and DFS2 have a space complexity of $O(|V|)$ as been seen before. If reversing the graph is done in place, then this operation is $O(1)$ spatially, otherwise if a copy is made each time DFS2 gets called, then it's $O(|V|+|E|)$. Globally, the space complexity is either $O(|V|+|E|)$ or $O(|V|)$.
+\end{itemize}
+\end{description}
+\newpage
+\subsubsection{Tarjan's algorithm}
+\begin{algorithm}[ht]
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Input:} Graph $\;G\:=\:(V, E)$\\
+\textbf{Output:} strongly connected components $scc$
+\begin{algorithmic}[1]
+    \State $index \gets 0$ 
+    \State $st = Stack()$
+    \Function{Tarjan}{$G(V,E)$} 
+        \For{\textbf{each} $u \in V$}
+            \State $scc(u) \gets null$
+            \State $lowlink(u) \gets null$
+            \State $index(u) \gets null$
+            \State $onStack(u) \gets false$
+        \EndFor
+        \For{\textbf{each} $u \in V$}
+            \If{$index(u)\;=\;null$}
+                \State $connect(G,\; u)$
+            \EndIf
+        \EndFor
+    \State \textbf{return} $scc$
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.52\textwidth}
+\textbf{Input:} Graph $G\:=\:(V, E)$; starting node $u$\\
+\textbf{Output:} nothing
+\begin{algorithmic}[1]
+    \Function{connect}{$G(V,E),\;u$}
+        \State $lowlink(u) \gets index$
+        \State $index(u) \gets index$
+        \State $index \gets index + 1$
+        \State $st.push(u)$
+        \State $onStack(u) \gets true$
+        \For{\textbf{each} $ (u,v) \in E$}
+            \If{$index(v)\;=\;null$}
+                \State $connect(G,\; v)$
+                \State $lowlink(u) \gets min(lowlink(u),\;lowlink(v))$
+            \ElsIf{$onStack(v)\;=\;true$}
+                \State $lowlink(u) \gets min(lowlink(u),\;index(v))$
+            \EndIf
+        \EndFor
+        \If{$lowlink(u)\;=\;index(u)$}
+            \Do
+                \State $v \gets st.pop()\;$
+                \State $onStack(v) \gets false$
+                \State $scc(v) \gets u$
+            \doWhile{$u\;\neq\;v$} 
+            \State $scc(u)\gets u$
+        \EndIf
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\caption{Tarjan's algorithm}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} The connect function is called once for each node and considers each edge at most once. The algorithm's running time is therefore $O(|V|+|E|)$ (linear time) by using an adjacency list or $O(|V|^2)$ by using an adjacency matrix. If the supplementary data $onStack$ wasn't used then the time it would take to know if it's on the stack would be linear. 
+    \item \textbf{Space complexity:} the stack and the supplementary data ($scc$, $lowlink$, $index$ and $onStack$) all have a space complexity of $O(|V|)$ so the global space complexity is $O(|V|)$.
+\end{itemize}
+ 
+\end{description}
+\newpage
+\subsection{Shortest Path}
+Finding the shortest path between two centers will be used to assign each client to a single depot based on how far they are of one another and to condense the graph to contain only the points of interest. Dijkstra's algorithm, A* and their bidirectional versions are able to do this. It was decided to present and use the versions whose output is the total weight of the shortest path since the shortest path is only used when showing the output of the program. Their pseudo-code are:
+\subsubsection{Dijkstra's algorithm}
+\begin{algorithm}
+\textbf{Input:} Graph $\;G\:=\:(V, E,w)$; starting node $s$; target node $t$\\
+\textbf{Output:} total weight $W$ of the shortest path between $s$ and $t$
+\begin{algorithmic}[1]
+    \Function{Dijkstra}{$G(V,E,w),\;s,\;t$} 
+        \State $dist(s) \gets 0$
+        \State $pq = PQueue()$
+        \For{\textbf{each} $u \in V$}
+            \If{$u\;\neq\;s$}
+                \State $dist(u) \gets \infty$
+                \State $prev(u) \gets null$
+            \EndIf
+            \State $pq.add\_with\_priority(u,\;dist(u))$
+        \EndFor
+        \While{$pq.empty\;=\;false$}
+            \State $u \gets pq.extract\_min()$
+            \If{$u\;=\;t$}
+                \State \textbf{return} $dist(u)$
+            \EndIf
+            \For{\textbf{each} $v \in Adj(G,u)$}
+                \State $alt \gets dist(u)+w(u,v)$
+                \If{$alt\; < \;dist(v)$}
+                    \State $dist(v)\gets alt$
+                    \State $prev(v)\gets u$
+                    \State $pq.decrease\_priority(v,\;alt)$
+                \EndIf
+            \EndFor
+        \EndWhile
+        \State \textbf{return} $\infty$
+    \EndFunction
+\end{algorithmic}
+\caption{Dijkstra's algorithm}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} The complexity bound depends mainly on the data structure used to represent the minimum priority queue. If $T_{dk}$, $T_{em}$ and $T_{ap}$ are the complexities of the decrease key, extract minimum and adding with priority operations, respectively, then the running time of the for loop is $O(|V|.T_{ap})$ and of the while loop is $O(|E|.T_{dk}+|V|.T_{em})$. The running time of the algorithm will be $O(|E|.T_{dk}+|V|.T_{em}+|V|.T_{ap})$. By using a binary heap, this complexity becomes $O((|E|+|V|).log(|V|))$. A Fibonacci heap improves this to $O(|E|+|V|.log(|V|))$.
+    \item \textbf{Space complexity:} The priority queue and supplementary data ($prev$ and $dist$) all have a space complexity of $O(|V|)$ so the global space complexity is $O(|V|)$.
+\end{itemize}
+\end{description}
+\newpage
+\subsubsection{Dijkstra's algorithm bidirectional}
+\begin{algorithm}
+\begin{minipage}[t]{0.48\textwidth}
+\textbf{Input:} Graph $\;G\:=\:(V, E,w)$; starting node $s$; target node $t$\\
+\textbf{Output:} total weight $W$ of the shortest path between $s$ and $t$
+\begin{algorithmic}[1]
+    \State $pq \gets PQueue(),\;\;\;pqRev \gets PQueue()$
+    \State $visAny \gets \emptyset$
+    \Function{Dijkstra\_Bid}{$G(V,E,w),\;s,\;t$} 
+        \State $pq.insert(s,\;0),\;\;\;pqRev.insert(t,\;0)$
+        \For{\textbf{each} $u \in V$}
+            \State $dist(u) \gets \infty, \;\;\; distRev(u) \gets \infty$
+            \State $prev(u) \gets null,\;\;\; prevRev(u) \gets null$
+            \State $vis(u) \gets false, \;\;\ visRev(u) \gets false$
+        \EndFor
+        \State $dist(s) \gets 0,  \;\;\;distRev(t) \gets 0$
+        \State $vis(s)\gets true, \;\;\; visRev(t)\gets true$
+        \While{$true$}
+            \State $u \gets pq.extract\_min()$
+            \If{$vis(u)\;=\;true$}
+                \State \textbf{continue}
+            \EndIf
+            \State $process(G,\;u)$
+            \State $visAny \gets visAny \cup \{u\}$
+            \If{$visRev(u)\;=\;true$}
+                \State \textbf{return} $shortest\_path(s,\;t)$
+            \EndIf
+            \State $uRev \gets pqRev.extract\_min()$
+            \If{$visRev(uRev)\;=\;true$}
+                \State \textbf{continue}
+            \EndIf
+            \State $process(G,\;uRev)$
+            \State $visAny \gets visAny \cup \{uRev\}$
+            \If{$vis(uRev)\;=\;true$}
+                \State \textbf{return} $shortest\_path(s,\;t)$
+            \EndIf
+            \If{$pq.empty\;or\;pqRev.empty\;=\;true$}
+                \State \textbf{return} $\infty$
+            \EndIf
+        \EndWhile
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\textbf{Input:} Graph $\;G\:=\:(V, E,w)$; current node $u$\\
+\textbf{Output:} nothing
+\begin{algorithmic}[1]
+    \Function{process}{$G(V,E,w),\;u$} 
+        \For{\textbf{each} $v \in Adj(G,u)$}
+            \If{$dist(v)\;>\;dist(u) + w(u,v)$}
+                \State $dist(v)\gets dist(u) + w(u,v)$
+                \State $prev(v)\gets u$
+                \State $pq.decrease\_priority(v,\;dist(v))$
+            \EndIf
+        \EndFor
+        \State $vis(u)\gets true$
+    \EndFunction
+\end{algorithmic}
+\textbf{Input:} Graph $\;G\:=\:(V, E,w)$; current node $u$\\
+\textbf{Output:} nothing
+\begin{algorithmic}[1]
+    \Function{processRev}{$G(V,E,w),\;u$} 
+        \For{\textbf{each} $v \in Adj(G^T,u)$}
+            \If{$distRev(v)\;>\;distRev(u) + w(v,u)$}
+                \State $distRev(v)\gets distRev(u) + w(v,u)$
+                \State $prevRev(v)\gets u$
+                \State $pqRev.decrease\_priority(v,\;dist(v))$
+            \EndIf
+        \EndFor
+        \State $visRev(u)\gets true$
+    \EndFunction
+\end{algorithmic}
+\textbf{Input:} Starting node $u$, end node $t$\\
+\textbf{Output:} total weight $W$ of the shortest path between $s$ and $t$
+\begin{algorithmic}[1]
+    \Function{shortest\_path}{$s,\;t$} 
+        \State $d\gets\infty$
+        \State $uBest \gets null$
+        \For{\textbf{each} $u \in visAny$}
+            \If{$d\;>\;dist(u)+distRev(u)$}
+                \State $uBest \gets u$
+                \State $d \gets dist(u)+distRev(u)$
+            \EndIf
+        \EndFor
+        \State \textbf{return} $d$
+    \EndFunction
+\end{algorithmic}
+\end{minipage}
+\caption{Dijkstra bidirectional}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} The time complexity is the same as the unidirectional version of Dijkstra's algorithm on the same conditions for the priority queue implementation.
+    \item \textbf{Space complexity:} The two priority queues, the set and supplementary data ($dist$, $distRev$, $prev$, $prevRev$, $vis$ and $visRev$) all have a space complexity of $O(|V|)$ so the global complexity is $O(|V|)$ if reversing the graph is done just one time, otherwise the global space complexity is $O(|V|+|E|)$.
+\end{itemize}
+\end{description}
+\newpage
+\subsubsection{A* and bidirectional A*}
+Since the edges' weight on the graph represent the time it takes to travel between a node and an adjacent node, the heuristic for A* and the bidirectional version of A* should also be a time. A valid heuristic function $ĥ(s,t)$ and the one used in this project is the time it takes to go in a straight line from $s$ to $t$ at a constant maximum speed legally possible. Since a straight line is the shortest path possible between two points, the time it takes to cross that line will also be the lowest time possible, so the heuristic is correct because it always serves as a lower bound for the cost of the cheapest route.
+\begin{algorithm}
+\textbf{Input:} Graph $\;G\:=\:(V, E, w)$; starting node $s$; target node $t$\\
+\textbf{Output:} total weight $W$ of the shortest path between $s$ and $t$
+\begin{algorithmic}[1]
+    \Function{Astar}{$G(V,E,w),\;s,\;t$} 
+        \State $dist(s) \gets 0$
+        \State $hdist(s) \gets ĥ(s)$
+        \State $pq \gets PQueue()$
+        \For{\textbf{each} $u \in V$}
+            \If{$u\;\neq\;s$}
+                \State $dist(u) \gets \infty$
+                \State $hdist(u) \gets \infty$
+                \State $prev(u) \gets null$
+            \EndIf
+            \State $pq.add\_with\_priority(u,\;hdist(u))$
+        \EndFor
+        \While{$pq.empty\;=\;false$}
+            \State $u \gets pq.extract\_min()$
+            \If{$u\;=\;t$}
+                \State \textbf{return} $dist(u)$
+            \EndIf
+            \For{\textbf{each} $v \in Adj(G,u)$}
+                \State $alt \gets dist(u)+w(u,v)$
+                \If{$alt\; < \;dist(v)$}
+                    \State $dist(v)\gets alt$
+                    \State $hdist(v)\gets alt+ĥ(v)$
+                    \State $prev(v)\gets u$
+                    \State $pq.decrease\_priority(v,\;hdist(v))$
+                \EndIf
+            \EndFor
+        \EndWhile
+        \State \textbf{return} $\infty$
+    \EndFunction
+\end{algorithmic}
+\caption{A*}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} The time complexity of A* if the same as Dijkstra’s algorithm provided that the heuristic function is evaluated at a constant time, which in the project's context is.
+    \item \textbf{Space complexity:} The priority queue and supplementary data ($prev$, $dist$ and $hdist$) all have a space complexity of $O(|V|)$ so the global space complexity is $O(|V|)$.
+\end{itemize}
+\end{description}
+The bidirectional form of A* pseudo code and its complexity analysis was excluded because it's the same as the bidirectional Dijkstra's algorithm but with the added heuristic.
+\newpage
+\subsection{Multi-depot vehicle routing problem}
+The steps of turning the MDVRP into a set of disjoint VRP are assigning each client to a depot and then condense the graph such that each depot and its clients will be part of a new
+\subsubsection{Assigning clients to depots}
+As it has already been said, the assignment of the clients, the target centers of application, to the depots, the centers of storage will be done using a shortest path algorithm which will find the depot with the shortest route to reach the client. This preparation is good enough to then solve the individual VRP problems and obtaining a good feasible answer. The pseudocode for the assignement is:
+\begin{algorithm}
+\textbf{Input:} Graph $\;G\;=\;(V, E,w)$\\
+\textbf{Output:} the depot each client is assigned to.
+\begin{algorithmic}[1]
+    \Function{Assign}{$G(V,E,w)$} 
+        \State $reachable \gets DFS(G)$
+        \State $scc \gets obtain\_scc(G)$ //can be Kosaraju's or Tarjan's algorithm
+        \For{\textbf{each} $u \in V_{tc}$}
+            \State $depot(u)\gets null$
+        \EndFor
+        \For{\textbf{each} $u \in V_{tc}$}
+            \State $best \gets \infty$
+            \For{\textbf{each} $v \in V_d$}
+                \If{$u \notin reachable(v)$}
+                    \State \textbf{continue}
+                \EndIf
+                \State $dist\gets shortest\_path(G,v,u)$ 
+                      //can be A*, Dijkstra's algorithm or their bidirectional forms
+                \If{$best\;>\;dist$}
+                    \State $depot(u)\gets v$
+                    \State $best \gets dist$
+                \EndIf
+            \EndFor
+        \EndFor
+    \State \textbf{return} $depot$
+    \EndFunction
+\end{algorithmic}
+\caption{Assigning clients to depots}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} The time complexity for the DFS is $O(|V_d|.(|V|+|E|))$ as we've seen before and the time complexity for the for loop setting the clients of each depot is $O(|V_d|)$. If $reachable(v)$ is evaluated in constant time which can be done by using a hashmap, then time complexity for the main nested loops is $O(|V_{tc}|.|V_d|.T_{sp})$ where $T_{sp}$ is the time complexity of the shortest path algorithm used. The algorithms for the shortest path talked in this report all have a running time of $O((|E|+|V|).log(|V|))$ if they use a binary heap or $O(|E|+|V|.log(|V|)$ if they use a Fibonacci heap. The total time complexity is either $O(|V_{tc}|.|V_d|.(|E|+|V|).log(|V|))$ or $O(|V_{tc}|.|V_d|.(|E|+|V|.log(|V|)))$. In the worst case $|V_{tc}|$ is $|V_{c}|$ when the target clients are all centers of application.
+    \item \textbf{Space complexity:} The $reachable$ supplementary data has a space complexity of $O(|V_d|.|V_{c}|)$ as we have seen before and $depot$ has a space complexity of $O(|V_d|+|V_{tc}|)$ because we have to save just one copy of a each depot and target client node. In the worst case $|V_{tc}|$ is $|V_{c}|$ when the target clients are all centers of application but in all other cases $|V_{tc}| < |V_{c}|$ so the global space complexity is $O(|V_d|.|V_c|)$.
+\end{itemize}
+\end{description}
+\newpage
+\subsubsection{Capacitated vehicle routing problem}
+\textbf{Problem structure}\\
+Let $G=(V, E,w)$ be a weighted directed graph with $V=\{0, 1, 2, ..., n\}$ as the set of nodes and the set of edges $E=\{(u, v)\; | \;u,v \in V,\;u\neq v\}$. A non-negative cost $c_{uv}$ associated with each edge $(u, v) \in E$.
+The set of nodes is partitioned into $k+1$ mutually exclusive nonempty subsets, called
+clusters, $V_0, V_1, ..., V_k;(i.e.\;V = V_0 \cup V_1 \cup ... \cup V_k\;\wedge\;V_l \cap V_p = \emptyset \;,\; \forall\:l,\;p\in\{0, 1, ..., k\}\;\wedge\;l\;\neq\;p)$. The cluster $V_0$ has only one vertex 0, which represents the depot, and remaining $n$
+nodes belonging to the remaining $k$ clusters represent geographically dispersed customers. Each
+customer has a certain amount of demand and the total demand of each cluster can be satisfied
+via any of its nodes. There exist $m$ identical vehicles, each with a capacity $C$. The VRP then consists in finding the minimum total cost of the route starting and ending at the depot, such that each cluster should be visited exactly once, the entering and leaving nodes of each cluster is the same and the sum of all the demands of any route does not exceed the capacity of the vehicle $C$.\\\\
+\textbf{Nearest Neighbour}\\
+In Nearest Neighbour the heuristic is always to go next to the nearest as-yet-unvisited client, subject to the restrictions of the problem. We start from the depot, from each cluster is visited exactly one client and the sum of all the demands of the current route does not exceed the capacity of the vehicle $C$. If the sum of all the demands of a current route exceeds the capacity of the vehicle then we start again from the depot and visit next the nearest customer from an unvisited cluster. If all the clusters are visited, then the algorithm terminates. For the given problem, doing this procedure for each vehicle of the depot's fleet was necessary to fully supply all of the clients and in the case the fleet isn't enough we return the remaining clients to assign them to another depot or wait for the vehicles to return.\\ Due to its greedy nature, it can sometimes miss shorter routes.\\\\
+\textbf{Clarke - Wright savings algorithm}\\
+The savings algorithm is on the best know solutions for the VRP.
+The process goes as follows:
+1) For each $i \in V_l$ and $j \in V_p$, where $l \neq p$ and $l, p \in \{1,...,k\}$ compute the savings:\newline
+$s_i_j \geq c_i_0 + c_0_j - c_i_j$ \newline
+Knowing that $s_i_j \geq 0$ and $s_i_j = s_j_i$, we then sort them in non increasing order.\newline
+Start by creating k routes denoted $(0,i_l,0), l \in 1,...,k$ as follows for each collection $V_l$ we define\newline $c_0_i__l$ = $min\{c_0_j \mid j \in V_l\}$.\newline
+For every collection $V_l$ there will be a route and the total time of all routes is given by: \newline
+$t = c0i_1 + c0i_2 + ... + c0i_k$.\newline
+2) Consider now each route $(0,i,...,j,0)$. Determine the savings $s_u_i$ or $s_j_v$ that can realistically be used to merge this route and another that ends in (u, 0) or starts in (0, v), for any $u \in V_l$ and $v \in V_p$, where $l \neq p$ and $l, p \in \{1,...,k\}$ and $V_l$ and $V_p$ are clusters left unvisited by the route (0, i, ..., j, 0).\newline
+As in a given moment there are many suitable route extension, it will be prioritized the one that results in the most reduction on total time.\newline
+We merge and repeat the operation on the current route. If there is no possible merge, procede to the next route and repeat the operations.
+Stop the process if no route merge is possible.\newline
+This simple algorithm as a time complexity of $O(n^2 log$ $n)$.
+
+\newpage
+\begin{algorithm}[H]
+\textbf{Input:} Graph $\;G\;=\;(V, E)$; depot $u$; clients of $u$ $clients$, function $travelTime(s,t)$ which gives the total time to go from a node $s$ to a node $t$; number of vehicles $n$ depot $u$ has; max time for a route $t$; $dem(v)$ which maps a client $v$ to its demand; vehicle max capacity $C$.\\
+\textbf{Output:} Set of routes $routes$ assigned for depot $u$ and set of remaining clients $clients$ (can be empty if all clients are visited/supplied).
+\begin{algorithmic}[1]
+    \Function{NearestNeighbour}{$G(V,E,w),\;u,\; clients,\;time,\;n,\;t,\;dem,\;C$} 
+        \State $routes \gets \emptyset$
+        \While{$n \neq 0$}
+            \State $r\gets \emptyset$\;,\; $assignRoute \gets true$\;,\;$currNode \gets u$
+            \State $currTime \gets 0$\;,\;$currCapacity \gets 0$
+            \While{$assignRoute\;=\;true$}
+                \State $pq\gets PQueue()$  
+                \For{\textbf{each} $v \in clients$}
+                    \State $pq.insert((travelTime(currNode, v),v))$
+                \EndFor
+                
+                \While{$pq.empty \;= \;false$}
+                    \State $(travelTime, v) \gets pq.extract\_min()$
+                    \If{$currTime + travelTime > t$}
+                        \State $assignRoute \gets false$
+                        \State \textbf{break}
+                    \EndIf
+                    \If{$currCapacity + dem(v) \leq C$   }
+                        \State $r \gets r \cup \{v\}$
+                        \State $assignRoute \gets true$
+                        \State $clients \gets clients \setminus \{v\}$
+                        \State $currTime \gets currTime + time$
+                        \State $currCapacity \gets currCapacity + dem(v)$
+                        \State $currNode \gets v$
+                        \State \textbf{break}
+                    \Else
+                        \State $assignRoute\gets false$
+                        \State \textbf{continue}
+                    \EndIf
+                \EndWhile
+            \EndWhile
+            \State $r \gets r \cup \{u\}$
+            \State $routes\gets routes \cup \{r\}$
+            \State $n\gets n-1$
+        \EndWhile
+    \State \textbf{return} $routes$, $clients$
+    \EndFunction
+\end{algorithmic}
+\caption{Nearest Neighbour}
+\end{algorithm}
+\begin{description}
+\item[Complexity analysis]\
+\begin{itemize}
+    \item \textbf{Time complexity:} The nested while loop going through each element of the priority queue has a linear time complexity $O(|clients|)$ which in the worst case is when all clients are all centers of application: $O(|V_c|)$. The for loop inserting each element of $clients$ in the priority queue has a time complexity of $O(|V_c|)$ or $O(|V_c|.log(|V_c|))$ if using a Fibonacci heap or binary heap, respectively. The global time complexity is then $O(n.|V_c|^3)$ or $O(n.|V_c|^3.log(|V_c|))$. 
+    \item \textbf{Space complexity:} The routes have a space complexity $O(|clients|)$ because each element of $clients$ is going to be inserted in $routes$ so in the worst case it's $O(|V_c|)$.
+\end{itemize}
+\end{description}
+
+\newpage
+\section{Use cases and functionalities}
+\begin{description}
+\item[The application should allow for:]\
+\begin{itemize}
+    \item \textbf{Reachability:} studying which centers of application the centers of storage can send vehicles to.
+    \item \textbf{Connectivity:} studying the connectivity of the graph by finding its articulation points and strongly connected components and then visualize them. The study can be done by choosing Kosaraju's or Tarjan's algorithm.
+    \item \textbf{Shortest path:} finding and visualizing the shortest path between a pair of nodes. This can be done by choosing Dijkstra's algorithm, the bidirectional form of it, A* or the bidirectional form of A*. It will also be possible to choose between a binary heap or Fibonacci heap. 
+    \item \textbf{MDVRP:} obtaining and visualizing the routes of all vehicles in order to deliver all vaccines to the application centers. It is left as choice to either minimize total time with the savings algorithm or minimizing vehicle number using Nearest Neighbour.
+    \item \textbf{Profiling:} testing the performance of the algorithms in terms of runtime and memory use and comparing them.
+\end{itemize}
+\end{description}
+\section{Conclusion}
+Given the problem it was understood that the algorithms that were learned in the classes would not solve it entirely. However, they did solve some of the sub-problems needed. It was necessary then to research quite a bit for algorithms and heuristics which would help especially since the vehicle routing problem is, naturally, NP-Hard. Its exact answer for large size inputs would take too much time but in everyday situations we need it fast. It is expected that there will not be many centers of application in the input set and even fewer centers of storage so the time it takes to reach a feasible answer with the strategy proposed might not be too long. If that's not the case, then multi-threading might help.\\
+Even though it would be interesting to remove some restrictions, to make the problem feel more realistic, like specific vaccine conditions (each vaccine needs specific storage temperatures, which could mean different freezers or even vehicles), different vehicles having different capacities, it isn't possible to account for all the different variables in a small size work like this is. As such, realism is toned down, but the work still provides a good insight on how vaccine transportation is done, and, more importantly, how these algorithms work.\\
+In summary, the plan to solve the problem is studying the reachability and connectivity of the graph, finding the shortest distance between two nodes in the graph, assigning the target centers of application to the centers of storage and then try to obtain a feasible answer to the global problem by solving the VRP for each center of storage.\\
+\section{Group effort and tasks participation}
+\section{Bibliography}
+\begin{itemize}
+    \item https://en.wikipedia.org/wiki/Kosaraju\%27s\_algorithm
+    \item https://en.wikipedia.org/wiki/Dijkstra\%27s\_algorithm
+    \item https://en.wikipedia.org/wiki/Tarjan\%27s\_strongly\_connected\_components\_algorithm
+    \item https://en.wikipedia.org/wiki/A*\_search\_algorithm
+    \item https://sandipanweb.wordpress.com/2020/12/08/graph-algorithms-with-python/
+    \item https://www.researchgate.net/publication/22821119\_Heuristic\_Algorithms\_for\_Solving\_the\_Generalized\_Vehicle\_Routing\_Problem
+    \item http://www.fsa.ulaval.ca/personnel/renaudj/pdf/Recherche/Improved\%20Petal.pdf
+    \item https://www.sciencedirect.com/science/article/pii/0305054895O0026P?via\%3Dihub 
+    \item https://www.researchgate.net/publication/269806497\_A\_Free\_Geographic\_Information\_System\_as\_a\_Tool\_for\_Multi-Depot\_Vehicle\_Routing
+\end{itemize}
+\end{document}
