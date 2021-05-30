@@ -1,0 +1,4 @@
+ToolSet: w64 6.0 (local)@C:\Users\pedro\OneDrive\Documentos\mingw64
+Options: 
+
+Options:

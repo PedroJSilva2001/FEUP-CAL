@@ -1,0 +1,7 @@
+na ciência da computação uma estrutura de dados é um modo particular de armazenamento e organização de dados em um computador de modo que possam ser usados eficientemente
+diferentes tipos de estrutura de dados são adequadas a diferentes tipos de aplicação e algumas são altamente especializadas destinando-se a algumas tarefas específicas
+por exemplo as B-trees são particularmente indicadas para a implementação de bases de dados enquanto que a implementação de compiladores geralmente requer o uso de tabela de dispersão para a busca de identificadores
+estruturas de dados e algoritmos são temas fundamentais da ciência da computação sendo utilizados nas mais diversas áreas do conhecimento e com os mais diferentes propósitos de aplicação
+sabe-se que algoritmos manipulam dados
+quando estes dados estão organizados de forma coerente caracterizam uma forma uma estrutura de dados
+a organização e os métodos para manipular essa estrutura é que lhe conferem singularidade
