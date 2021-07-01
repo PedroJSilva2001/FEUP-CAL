@@ -28,7 +28,6 @@ int editDistance(std::string pattern, std::string text) {
     }
     int mintEditDistance = dp[pattern.size()][text.size()];
 
-    // quem se esquece de dar delete a memoria alocada é paneleiro
     for (int i = 0; i < pattern.size(); i++) {
         if (dp[i] != nullptr) {
             delete[] dp[i];
